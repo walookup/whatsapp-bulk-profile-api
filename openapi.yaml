@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: WhatsApp Bulk Profile Check
+  version: 1.0.0
+  description: Asynchronous bulk task for ws_profile_batch - submit a file, poll the task, download the result.
+  contact:
+    name: WA Lookup
+    url: https://walookup.com/products/ws_profile_batch
+  license:
+    name: MIT
+    url: https://opensource.org/license/mit
+externalDocs:
+  description: WA Lookup API documentation
+  url: https://walookup.com/api-docs
+servers:
+  - url: https://walookup.com
+security:
+  - ApiKeyAuth: []
+paths:
+  /api/v1/bulk-tasks:
+    post:
+      summary: Submit a ws_profile_batch task
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [product, country, file]
+              properties:
+                product:
+                  type: string
+                  enum: [ws_profile_batch]
+                country: { type: string, description: ISO country or region code }
+                file: { type: string, format: binary, description: txt or csv, one phone number per line, 1000-100000 entries }
+      responses:
+        '200': { description: Task created with status processing }
+        '400': { description: Invalid request or file }
+        '401': { description: Invalid API key }
+        '402': { description: Insufficient balance }
+  /api/v1/bulk-tasks/{id}:
+    get:
+      summary: Task status and result link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: status is processing, success or failed; a successful task carries the result download link }
+        '404': { description: Unknown task }
+  /api/v1/balance:
+    get:
+      summary: Current balance
+      responses:
+        '200': { description: Balance in data.balance_micros }
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key

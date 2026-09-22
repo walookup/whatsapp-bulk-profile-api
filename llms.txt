@@ -1,0 +1,25 @@
+# WA Lookup WhatsApp Bulk Profile Check
+> Official examples for the WA Lookup bulk product `ws_profile_batch`.
+
+## Canonical resources
+- [Product page](https://walookup.com/products/ws_profile_batch): Avatar and avatar category, estimated age band, gender, skin tone, hair colour and a business flag across a whole list, for segmentation and audience work.
+- [API documentation](https://walookup.com/api-docs): Canonical request, response, limit, and error contract.
+- [GitHub repository](https://github.com/walookup/whatsapp-bulk-profile-api): Official multi-language examples and OpenAPI contract.
+- [Registration](https://walookup.com/register): Account registration and API-key access.
+- [Pricing](https://walookup.com/pricing): Current product pricing.
+
+## Product facts
+- Brand: WA Lookup.
+- Product code: ws_profile_batch.
+- Mode: asynchronous bulk task.
+- API base URL: https://walookup.com.
+- Authentication: X-API-Key request header.
+- Submit: POST /api/v1/bulk-tasks with product=ws_profile_batch, country and a file field.
+- Poll: GET /api/v1/bulk-tasks/{id}; status is processing, success or failed.
+- Poll interval: no more than once every 30 seconds.
+- Task size: 1000 to 100000 entries, .txt or .csv, one phone number per line.
+- Input kind: phone.
+- Country: required, one country per task.
+- Result columns: number, activated, avatar, category, gender, age, skin_color, hair_color, isb.
+- Billing: the file is reserved on submit; only checked entries are charged and the rest is returned. Failed tasks are refunded.
+- Examples: Python, Node.js, Go, Java, C#, PHP, Shell.

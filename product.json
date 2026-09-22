@@ -1,0 +1,97 @@
+{
+  "name": "WhatsApp Bulk Profile Check",
+  "brand": "WA Lookup",
+  "repository": "walookup/whatsapp-bulk-profile-api",
+  "description": "Avatar and avatar category, estimated age band, gender, skin tone, hair colour and a business flag across a whole list, for segmentation and audience work.",
+  "official_site": "https://walookup.com",
+  "landing_page": "https://walookup.com/products/ws_profile_batch",
+  "canonical_docs": "https://walookup.com/api-docs",
+  "base_url": "https://walookup.com",
+  "auth": {
+    "type": "api_key",
+    "header": "X-API-Key"
+  },
+  "mode": "async-bulk",
+  "product": "ws_profile_batch",
+  "identifier_kind": "phone",
+  "requires_country": true,
+  "endpoints": {
+    "submit": {
+      "method": "POST",
+      "path": "/api/v1/bulk-tasks"
+    },
+    "status": {
+      "method": "GET",
+      "path": "/api/v1/bulk-tasks/{id}"
+    },
+    "balance": {
+      "method": "GET",
+      "path": "/api/v1/balance"
+    }
+  },
+  "limits": {
+    "min_items": 1000,
+    "max_items": 100000,
+    "poll_interval_seconds": 30,
+    "file_formats": [
+      "txt",
+      "csv"
+    ]
+  },
+  "result_fields": [
+    {
+      "name": "number",
+      "example": "17253100591",
+      "description": "The submitted number."
+    },
+    {
+      "name": "activated",
+      "example": "yes",
+      "description": "Whether the number is registered on WhatsApp."
+    },
+    {
+      "name": "avatar",
+      "example": "<image url>",
+      "description": "Avatar URL."
+    },
+    {
+      "name": "category",
+      "example": "individual portrait",
+      "description": "Avatar category, e.g. individual portrait."
+    },
+    {
+      "name": "gender",
+      "example": "male",
+      "description": "Gender estimated from the avatar."
+    },
+    {
+      "name": "age",
+      "example": "25",
+      "description": "Age band estimated from the avatar."
+    },
+    {
+      "name": "skin_color",
+      "example": "south_asian",
+      "description": "Skin tone estimated from the avatar."
+    },
+    {
+      "name": "hair_color",
+      "example": "black",
+      "description": "Hair colour estimated from the avatar."
+    },
+    {
+      "name": "isb",
+      "example": "2",
+      "description": "Business account flag."
+    }
+  ],
+  "statuses": [
+    "processing",
+    "success",
+    "failed"
+  ],
+  "pricing_url": "https://walookup.com/pricing",
+  "maintainer": "WA Lookup",
+  "license": "MIT",
+  "last_reviewed": "2026-09-22"
+}
