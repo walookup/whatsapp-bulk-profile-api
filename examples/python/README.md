@@ -1,10 +1,16 @@
-# python
+# python example
 
-From `examples/` (so `numbers.txt` is alongside):
+Python 3 and requests (`python3 -m pip install requests`).
 
-    export WALOOKUP_API_KEY="YOUR_API_KEY"
-    python3 ../python/bulk_task.py
+Run **from the repository root**:
 
-Polling must not be more frequent than once every 30 seconds.
+```bash
+export WALOOKUP_API_KEY="YOUR_API_KEY"
+python3 examples/python/bulk_task.py
+```
 
-See [the main README](../../README.md) for the full `ws_profile_batch` contract.
+Submit once, then poll the same ID at least 30 seconds apart. Prints result metadata and its download URL; does not download the archive automatically.
+
+For Python, Node.js, PHP and Shell, set `FILE=/path/to/your/list.txt` to choose an authorized input file. The bundled `examples/numbers.txt` only illustrates the input format and does not meet the production minimum. Go reads that path directly; replace it with an authorized file before use. See the [main README](../../README.md) for `ws_avatar_batch` limits and billing. Never submit fixture identifiers to production.
+
+The request uses `service_type=ws_avatar_batch`. For phone tasks, send `country` before `file`; email and username tasks do not require it. `API_BASE_URL` can select a trusted local mock endpoint.

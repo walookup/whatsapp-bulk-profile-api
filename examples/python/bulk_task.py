@@ -4,32 +4,42 @@ import time
 import requests
 
 api_key = os.environ["WALOOKUP_API_KEY"]
-base_url = os.getenv("API_BASE_URL", "https://walookup.com")
-product = os.getenv("PRODUCT", "ws_profile_batch")
-country = os.getenv("COUNTRY", "US")
-path = os.getenv("FILE", "numbers.txt")
+base_url = os.getenv("API_BASE_URL", "https://walookup.com").rstrip("/")
+path = os.getenv("FILE", "examples/numbers.txt")
+payload = {"service_type": "ws_avatar_batch"}
+payload["country"] = os.getenv("COUNTRY", "US")
+headers = {"X-API-Key": api_key}
+if os.getenv("IDEMPOTENCY_KEY"):
+    headers["Idempotency-Key"] = os.environ["IDEMPOTENCY_KEY"]
+
+
+def read_api(response):
+    response.raise_for_status()
+    envelope = response.json()
+    if envelope.get("code") != 0:
+        raise RuntimeError(f"API error: {envelope}")
+    return envelope["data"]
+
 
 with open(path, "rb") as handle:
     created = requests.post(
         f"{base_url}/api/v1/bulk-tasks",
-        headers={"X-API-Key": api_key},
-        data={"product": product, "country": country},
+        headers=headers,
+        data=payload,  # requests writes service_type/country before the file part.
         files={"file": handle},
-        timeout=120,
+        timeout=180,
     )
-created.raise_for_status()
-task_id = created.json()["data"]["id"]
+task_id = read_api(created)["id"]
 print("submitted", task_id)
 
-# 轮询间隔不得短于 30 秒，这是服务端的契约而不是建议。
 while True:
     time.sleep(30)
-    status = requests.get(
-        f"{base_url}/api/v1/bulk-tasks/{task_id}", headers={"X-API-Key": api_key}, timeout=60
-    )
-    status.raise_for_status()
-    payload = status.json()["data"]
-    print(payload["status"])
-    if payload["status"] != "processing":
-        print(payload)
+    status = read_api(requests.get(
+        f"{base_url}/api/v1/bulk-tasks/{task_id}",
+        headers={"X-API-Key": api_key}, timeout=60,
+    ))
+    print(status)
+    if status["status"] == "failed":
+        raise RuntimeError(f"Task failed: {status.get('reason', '')} {status.get('reason_detail', '')}")
+    if status["status"] == "success" and status.get("result_url"):
         break

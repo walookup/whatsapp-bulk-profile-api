@@ -1,106 +1,107 @@
-# WhatsApp Bulk Profile Check — `ws_profile_batch` | WA Lookup
+# WhatsApp bulk avatar check — official API examples | WA Lookup
 
-WhatsApp bulk profile check returns the profile fields for each number: avatar URL and category, estimated age band, gender, and skin tone. It suits segmenting large lists into audiences. The result contains only the profile fields listed above — never chat history or message content.
+Check WhatsApp registration and avatar availability, and get the public avatar URL for an authorized list.
 
-This is the official WA Lookup example repository for **one** bulk product, `ws_profile_batch`. It is an asynchronous task: upload a file, get a task id immediately, poll the task, and download the result file when it finishes.
+This repository covers the **asynchronous, file-based** product `ws_avatar_batch`. Submit a file, keep the returned task ID, poll it, then use the result URL after success. It is separate from synchronous `/api/v1/check` and `/api/v1/batch-check` integrations.
 
-- **Product page:** https://walookup.com/products/ws_profile_batch
+- **Product:** https://walookup.com/products/ws_avatar_batch
 - **API documentation:** https://walookup.com/api-docs
 - **API base URL:** `https://walookup.com`
 - **Authentication:** `X-API-Key`
-- **Get an API key:** https://walookup.com/register
+- **Get an API key:** https://walookup.com/register?utm_source=github&utm_medium=referral&utm_campaign=walookup_whatsapp-bulk-profile-api
 
-## What is it usually used for?
-
+## Typical uses
 - Audience segmentation
 - Targeted list splits
 - Avatar asset collection
 - First-pass account authenticity
 
-## What does the result file contain?
+## Submit an authorized list
 
-| Column | Example | Meaning |
-|---|---|---|
-| `number` | `17253100591` | The submitted number. |
-| `activated` | `yes` | Whether the number is registered on WhatsApp. |
-| `avatar` | `<image url>` | Avatar URL. |
-| `category` | `individual portrait` | Avatar category, e.g. individual portrait. |
-| `gender` | `male` | Gender estimated from the avatar. |
-| `age` | `25` | Age band estimated from the avatar. |
-| `skin_color` | `south_asian` | Skin tone estimated from the avatar. |
-| `hair_color` | `black` | Hair colour estimated from the avatar. |
-| `isb` | `2` | Business account flag. |
+Upload a `.txt` or one-column `.csv` file with **1,000–500,000 valid phone entries**. Use a single-country list of international numbers with an explicit country code. `country` selects that country; it does not add missing country codes. Invalid, missing-country-code, other-country and duplicate lines are counted separately during preprocessing.
 
-The result is a **point-in-time signal**, not a verdict, and not identity data. It describes what the provider reported at the moment the task ran.
-
-## How do I submit a task?
-
-Upload a `.txt` or `.csv` with **one phone number per line**, 1,000–100,000 valid entries. A number list must come from a **single country**, given as `country` — the upstream uses it to expand bare national numbers.
+Send `service_type` and, for phone products, `country` **before `file`** in the multipart body. The request field is `service_type`; the response still calls the selected product `data.product`.
 
 ```bash
 curl -X POST 'https://walookup.com/api/v1/bulk-tasks' \
   -H 'X-API-Key: YOUR_API_KEY' \
-  -F 'product=ws_profile_batch' \
+  -F 'service_type=ws_avatar_batch' \
   -F 'country=US' \
   -F 'file=@numbers.txt'
 ```
 
-The response returns the task id and `status=processing`, along with the server-side quote taken before processing starts.
+For a retry of the same submission, use the same previously chosen `Idempotency-Key` header (up to 128 characters). Do not automatically resubmit after a timeout: the original request may already have created a task.
 
-## How do I poll a task and download the result?
+The included `numbers.txt` is a tiny **format fixture**, not a production-sized list. Supply an authorized file that meets the product minimum; do not pad it with duplicates or invented identifiers. Example clients accept `FILE` to select your file.
+
+## Poll the same task and obtain results
 
 ```bash
-curl -fsS 'https://walookup.com/api/v1/bulk-tasks/TASK_ID' -H 'X-API-Key: YOUR_API_KEY'
+curl -fsS 'https://walookup.com/api/v1/bulk-tasks/TASK_ID' \
+  -H 'X-API-Key: YOUR_API_KEY'
 ```
 
-`status` is `processing`, `success` or `failed` — there is no progress percentage to poll for. **Do not poll more often than once every 30 seconds.** When the task succeeds the response carries the result-file download link.
+Read the `code`, then `data.status`. Poll **no more often than once every 30 seconds**:
 
-## Bulk task or realtime check?
+- `processing`: keep the task ID and wait. `preparing=true` means input preprocessing is not complete; `total` is preliminary.
+- `success`: final `success_cnt` and `failure_cnt` are available. Use `result_url` to download the result. If the link is temporarily absent, query this task again after 30 seconds; do not submit a replacement task.
+- `failed`: report `reason` / `reason_detail` and stop polling. An HTTP 200 containing `data.status=failed` is a failed task.
 
-`POST /api/v1/bulk-tasks` (this repository) takes a file of 1,000–100,000 entries and answers later — that is the shape for list cleaning, campaign preparation and enrichment runs. A **realtime** check (`POST /api/v1/check`, or `POST /api/v1/batch-check` for up to 100 identifiers) answers inside the same HTTP response, for a signup form or a live lookup. The two are separate endpoints and are not interchangeable; see the other repositories under [walookup](https://github.com/walookup).
+The API does not return a progress percentage or pricing/reservation quote. Request fields, response fields, and examples are specified in [openapi.yaml](openapi.yaml).
 
-## What about billing?
+## Exported result fields
 
-The whole file is reserved on submit. When the task finishes you are charged only for the entries that were actually checked and the remainder is returned. A failed task is refunded in full.
+The current brand-side export uses these columns, in this order. Preserve their names when parsing the result; do not substitute upstream CSV headers.
 
-## What are the limits and error codes?
+| Column | Example | Meaning |
+|---|---|---|
+| `identifier` | `12345678900` | Submitted identifier, used to join the result to the input. Phone identifiers include their country code. |
+| `activated` | `true` | The determined positive/negative signal for this product; interpret it in the product context. |
+| `avatar` | `true` | Whether an avatar is available. |
+| `avatar_url` | `https://pps.whatsapp.net/v/example.jpg` | Public avatar URL when available; an empty value does not reveal a private image. |
 
-| Limit | Value |
+These are point-in-time product signals. Empty or unknown values are not proof of a negative fact; avatar attributes are image-derived estimates, not verified facts about a person.
+
+## Limits, billing and errors
+
+| Contract | Value |
 |---|---|
-| Entries per task | 1,000–100,000 |
-| File formats | `.txt`, `.csv`, one entry per line |
-| Products per task | 1 (`ws_profile_batch`) |
-| Country | required, exactly one per task |
-| Poll interval | no more than once per 30 seconds |
+| `service_type` | `ws_avatar_batch` |
+| Input | `phone` |
+| Valid entries per task | 1,000–500,000 |
+| Country | Required; one country per task |
+| Poll interval | At least 30 seconds |
+| File formats | `.txt`, one-column `.csv` |
 
-`40000`/`40001` are request or file errors; `40100` is an invalid key; `40200` is insufficient balance; `42900` is rate limited — honour `Retry-After`; `50300` is temporary maintenance. `GET /api/v1/balance` returns the current balance in `data.balance_micros`.
+The input amount is reserved on submission. Settlement charges checked entries and returns the remainder; failed tasks are refunded. See [current pricing](https://walookup.com/pricing) rather than assuming a fixed price. `GET /api/v1/balance` returns USD micros in `data.balance_micros`.
 
-Keep the key on a trusted server and read it from `WALOOKUP_API_KEY`. Never commit it or expose it in production browser code.
+`40000`/`40001` cover invalid requests or inputs; `40100` is an invalid key; `40200` is insufficient balance; `42900`/`42901` are rate/concurrency limits; `50300` is temporary maintenance. Honor `Retry-After`. Do not treat a request error or undetermined item as a determined negative result.
 
-## Runnable examples in seven languages
+## Language examples
 
-| Language | Example |
-|---|---|
-| Python | [`examples/python`](examples/python) |
-| Node.js | [`examples/nodejs`](examples/nodejs) |
-| Go | [`examples/go`](examples/go) |
-| Java | [`examples/java`](examples/java) |
-| C# | [`examples/csharp`](examples/csharp) |
-| PHP | [`examples/php`](examples/php) |
-| Shell / curl | [`examples/shell`](examples/shell) |
+Run from the repository root; use the commands and prerequisites in each language README.
 
-## Official resources and responsible use
+| Language | Example | Coverage |
+|---|---|---|
+| Python | [examples/python](examples/python) | Submit and poll; print result metadata / URL |
+| Node.js | [examples/nodejs](examples/nodejs) | Submit and poll; print result metadata / URL |
+| Shell | [examples/shell](examples/shell) | Submit and poll; print result metadata / URL |
+| Go | [examples/go](examples/go) | Submit; prints the task ID in its JSON response |
+| PHP | [examples/php](examples/php) | Submit; prints the task ID in its JSON response |
+| Java | [examples/java](examples/java) | Query one existing task ID |
+| C# | [examples/csharp](examples/csharp) | Query one existing task ID |
 
-- **This product:** https://walookup.com/products/ws_profile_batch
-- **All products:** https://walookup.com/products
-- **Documentation:** https://walookup.com/api-docs
-- **Registration:** https://walookup.com/register
-- **Pricing:** https://walookup.com/pricing
-- **OpenAPI contract:** [`openapi.yaml`](openapi.yaml)
-- **License:** [MIT](LICENSE) for the sample code
+Read the key from `WALOOKUP_API_KEY` on a trusted server. `API_BASE_URL` is available for a trusted development/mock endpoint; never send a production key to an untrusted override. Do not expose keys in browser code or commit them.
 
-Submit only data you are authorized to process, and comply with applicable privacy laws and platform terms. Report the signal you received as a signal; do not relabel it downstream as a conclusion it does not support.
+## Official resources
 
----
+- Product: https://walookup.com/products/ws_avatar_batch
+- Documentation: https://walookup.com/api-docs
+- Registration: https://walookup.com/register?utm_source=github&utm_medium=referral&utm_campaign=walookup_whatsapp-bulk-profile-api
+- Pricing: https://walookup.com/pricing
+- OpenAPI: [openapi.yaml](openapi.yaml)
+- Sample code license: [MIT](LICENSE)
 
-*Last reviewed: 2026-09-22 · Maintained by WA Lookup. Canonical documentation: https://walookup.com/api-docs*
+Process only identifiers you are authorized to use. Third-party trademarks do not imply affiliation or endorsement.
+
+*Last reviewed: 2026-10-30 · Maintained by WA Lookup.*

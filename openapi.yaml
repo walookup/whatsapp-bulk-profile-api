@@ -1,11 +1,12 @@
 openapi: 3.0.3
 info:
-  title: WhatsApp Bulk Profile Check
-  version: 1.0.0
-  description: Asynchronous bulk task for ws_profile_batch - submit a file, poll the task, download the result.
+  title: WhatsApp bulk avatar check
+  version: 1.1.0
+  description: Check WhatsApp registration and avatar availability, and get the public avatar URL for an authorized
+    list.
   contact:
     name: WA Lookup
-    url: https://walookup.com/products/ws_profile_batch
+    url: https://walookup.com/products/ws_avatar_batch
   license:
     name: MIT
     url: https://opensource.org/license/mit
@@ -13,50 +14,249 @@ externalDocs:
   description: WA Lookup API documentation
   url: https://walookup.com/api-docs
 servers:
-  - url: https://walookup.com
+- url: https://walookup.com
 security:
-  - ApiKeyAuth: []
+- ApiKeyAuth: []
 paths:
   /api/v1/bulk-tasks:
     post:
-      summary: Submit a ws_profile_batch task
+      summary: Submit a ws_avatar_batch task
+      description: Send service_type and, for phone lists, country before file in the multipart body, or in
+        the query string. Response data.product is the selected product; its name is unchanged. Do not automatically
+        repeat an uncertain submission.
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: Use the same key for a retry of the same submission.
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
-              required: [product, country, file]
+              required:
+              - service_type
+              - country
+              - file
               properties:
-                product:
+                service_type:
                   type: string
-                  enum: [ws_profile_batch]
-                country: { type: string, description: ISO country or region code }
-                file: { type: string, format: binary, description: txt or csv, one phone number per line, 1000-100000 entries }
+                  enum:
+                  - ws_avatar_batch
+                country:
+                  type: string
+                  pattern: ^[A-Z]{2}$
+                  example: US
+                  description: ISO 3166-1 country of the phone list. Numbers must already include their country
+                    code.
+                file:
+                  type: string
+                  format: binary
+                  description: One phone per line; 1,000–500,000 valid entries after preprocessing. Example
+                    files only illustrate the format.
       responses:
-        '200': { description: Task created with status processing }
-        '400': { description: Invalid request or file }
-        '401': { description: Invalid API key }
-        '402': { description: Insufficient balance }
+        '200':
+          description: Task accepted with processing status; no result URL or final counters yet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskEnvelope'
+        '400':
+          description: Invalid fields, multipart order, file, or input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '402':
+          description: Insufficient balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited or concurrency limit reached; honor Retry-After.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Temporary maintenance or unavailable dependency.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/v1/bulk-tasks/{id}:
     get:
-      summary: Task status and result link
+      summary: Read task status and result URL
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
-        '200': { description: status is processing, success or failed; a successful task carries the result download link }
-        '404': { description: Unknown task }
+        '200':
+          description: processing, success or failed. Poll at least 30 seconds apart. Only success can include
+            result_url.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskEnvelope'
+        '401':
+          description: Invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Unknown task.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited; honor Retry-After.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/v1/balance:
     get:
-      summary: Current balance
+      summary: Read balance
       responses:
-        '200': { description: Balance in data.balance_micros }
+        '200':
+          description: Current balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceEnvelope'
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: X-API-Key
+  schemas:
+    Error:
+      type: object
+      required:
+      - code
+      - msg
+      properties:
+        code:
+          type: integer
+          description: Non-zero API error code.
+        msg:
+          type: string
+      description: An HTTP/API error is not a determined negative result.
+    BalanceEnvelope:
+      type: object
+      required:
+      - code
+      - msg
+      - data
+      properties:
+        code:
+          type: integer
+          enum:
+          - 0
+        msg:
+          type: string
+        data:
+          type: object
+          required:
+          - balance_micros
+          properties:
+            balance_micros:
+              type: integer
+              format: int64
+              description: USD micros; 1,000,000 equals USD 1.
+    Task:
+      type: object
+      required:
+      - id
+      - product
+      - status
+      - submitted_lines
+      - total
+      - invalid_cnt
+      - no_code_cnt
+      - other_country_cnt
+      - duplicate_cnt
+      - preparing
+      - created_at
+      properties:
+        id:
+          type: string
+        product:
+          type: string
+          enum:
+          - ws_avatar_batch
+        status:
+          type: string
+          enum:
+          - processing
+          - success
+          - failed
+        country:
+          type: string
+          description: Present for phone tasks; omitted for email/username tasks.
+        submitted_lines:
+          type: integer
+        total:
+          type: integer
+          description: Valid input count after preprocessing; preliminary while preparing=true.
+        invalid_cnt:
+          type: integer
+        no_code_cnt:
+          type: integer
+        other_country_cnt:
+          type: integer
+        duplicate_cnt:
+          type: integer
+        preparing:
+          type: boolean
+        success_cnt:
+          type: integer
+          description: Present only after success.
+        failure_cnt:
+          type: integer
+          description: Present only after success.
+        result_url:
+          type: string
+          format: uri
+          description: Optional on success; if temporarily absent, query the same task again after at least
+            30 seconds. Never resubmit just to obtain a link.
+        reason:
+          type: string
+          description: Failure reason when failed.
+        reason_detail:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    TaskEnvelope:
+      type: object
+      required:
+      - code
+      - msg
+      - data
+      properties:
+        code:
+          type: integer
+          enum:
+          - 0
+        msg:
+          type: string
+        data:
+          $ref: '#/components/schemas/Task'

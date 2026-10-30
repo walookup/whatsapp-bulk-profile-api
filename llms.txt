@@ -1,25 +1,23 @@
-# WA Lookup WhatsApp Bulk Profile Check
-> Official examples for the WA Lookup bulk product `ws_profile_batch`.
+# WA Lookup WhatsApp bulk avatar check
+> Official asynchronous integration for `ws_avatar_batch`.
 
-## Canonical resources
-- [Product page](https://walookup.com/products/ws_profile_batch): Avatar and avatar category, estimated age band, gender, skin tone, hair colour and a business flag across a whole list, for segmentation and audience work.
-- [API documentation](https://walookup.com/api-docs): Canonical request, response, limit, and error contract.
-- [GitHub repository](https://github.com/walookup/whatsapp-bulk-profile-api): Official multi-language examples and OpenAPI contract.
-- [Registration](https://walookup.com/register): Account registration and API-key access.
-- [Pricing](https://walookup.com/pricing): Current product pricing.
+## Resources
+- Product: https://walookup.com/products/ws_avatar_batch
+- API documentation: https://walookup.com/api-docs
+- Repository: https://github.com/walookup/whatsapp-bulk-profile-api
+- Registration: https://walookup.com/register?utm_source=github&utm_medium=referral&utm_campaign=walookup_whatsapp-bulk-profile-api
+- Pricing: https://walookup.com/pricing
+- OpenAPI: openapi.yaml
 
-## Product facts
-- Brand: WA Lookup.
-- Product code: ws_profile_batch.
-- Mode: asynchronous bulk task.
-- API base URL: https://walookup.com.
-- Authentication: X-API-Key request header.
-- Submit: POST /api/v1/bulk-tasks with product=ws_profile_batch, country and a file field.
-- Poll: GET /api/v1/bulk-tasks/{id}; status is processing, success or failed.
-- Poll interval: no more than once every 30 seconds.
-- Task size: 1000 to 100000 entries, .txt or .csv, one phone number per line.
-- Input kind: phone.
-- Country: required, one country per task.
-- Result columns: number, activated, avatar, category, gender, age, skin_color, hair_color, isb.
-- Billing: the file is reserved on submit; only checked entries are charged and the rest is returned. Failed tasks are refunded.
-- Examples: Python, Node.js, Go, Java, C#, PHP, Shell.
+## Contract
+- Base URL: https://walookup.com; authentication: X-API-Key.
+- Submit POST /api/v1/bulk-tasks with service_type=ws_avatar_batch, country, then file. The response field remains data.product.
+- Input: phone, 1000–500000 valid entries. One country per task; identifiers must already include the country code.
+- Poll GET /api/v1/bulk-tasks/{id} at least 30 seconds apart. Status: processing, success, failed. A successful task may carry result_url; a missing link is a reason to query again, not resubmit.
+- Result columns, in order: identifier, activated, avatar, avatar_url.
+- Processing counters are provisional while preparing=true. Final success/failure counts only appear after success.
+- No pricing/reservation quote is returned by the public API. Read current pricing separately.
+- Use Idempotency-Key for a retry of the same submission; never blindly resubmit after an uncertain timeout.
+- Example input files are format fixtures, not valid production-sized batches.
+
+Last reviewed: 2026-10-30.

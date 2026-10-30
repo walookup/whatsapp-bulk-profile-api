@@ -3,15 +3,16 @@ $key = getenv('WALOOKUP_API_KEY');
 if (!$key) {
     throw new Exception('Set WALOOKUP_API_KEY');
 }
-$curl = curl_init('https://walookup.com/api/v1/bulk-tasks');
+$base = rtrim(getenv('API_BASE_URL') ?: 'https://walookup.com', '/');
+$curl = curl_init($base.'/api/v1/bulk-tasks');
 curl_setopt_array($curl, [
     CURLOPT_POST => true,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_HTTPHEADER => ['X-API-Key: '.$key],
     CURLOPT_POSTFIELDS => [
-        'product' => 'ws_profile_batch',
+        'service_type' => 'ws_avatar_batch',
         'country' => 'US',
-        'file' => new CURLFile('numbers.txt'),
+        'file' => new CURLFile(getenv('FILE') ?: 'examples/numbers.txt'),
     ],
 ]);
 $response = curl_exec($curl);

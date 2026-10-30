@@ -1,10 +1,10 @@
 {
-  "name": "WhatsApp Bulk Profile Check",
+  "name": "WhatsApp bulk avatar check",
   "brand": "WA Lookup",
   "repository": "walookup/whatsapp-bulk-profile-api",
-  "description": "Avatar and avatar category, estimated age band, gender, skin tone, hair colour and a business flag across a whole list, for segmentation and audience work.",
+  "description": "Check WhatsApp registration and avatar availability, and get the public avatar URL for an authorized list.",
   "official_site": "https://walookup.com",
-  "landing_page": "https://walookup.com/products/ws_profile_batch",
+  "landing_page": "https://walookup.com/products/ws_avatar_batch",
   "canonical_docs": "https://walookup.com/api-docs",
   "base_url": "https://walookup.com",
   "auth": {
@@ -12,7 +12,7 @@
     "header": "X-API-Key"
   },
   "mode": "async-bulk",
-  "product": "ws_profile_batch",
+  "product": "ws_avatar_batch",
   "identifier_kind": "phone",
   "requires_country": true,
   "endpoints": {
@@ -31,7 +31,7 @@
   },
   "limits": {
     "min_items": 1000,
-    "max_items": 100000,
+    "max_items": 500000,
     "poll_interval_seconds": 30,
     "file_formats": [
       "txt",
@@ -40,49 +40,24 @@
   },
   "result_fields": [
     {
-      "name": "number",
-      "example": "17253100591",
-      "description": "The submitted number."
+      "name": "identifier",
+      "example": "12345678900",
+      "description": "Submitted identifier, used to join the result to the input. Phone identifiers include their country code."
     },
     {
       "name": "activated",
-      "example": "yes",
-      "description": "Whether the number is registered on WhatsApp."
+      "example": "true",
+      "description": "The determined positive/negative signal for this product; interpret it in the product context."
     },
     {
       "name": "avatar",
-      "example": "<image url>",
-      "description": "Avatar URL."
+      "example": "true",
+      "description": "Whether an avatar is available."
     },
     {
-      "name": "category",
-      "example": "individual portrait",
-      "description": "Avatar category, e.g. individual portrait."
-    },
-    {
-      "name": "gender",
-      "example": "male",
-      "description": "Gender estimated from the avatar."
-    },
-    {
-      "name": "age",
-      "example": "25",
-      "description": "Age band estimated from the avatar."
-    },
-    {
-      "name": "skin_color",
-      "example": "south_asian",
-      "description": "Skin tone estimated from the avatar."
-    },
-    {
-      "name": "hair_color",
-      "example": "black",
-      "description": "Hair colour estimated from the avatar."
-    },
-    {
-      "name": "isb",
-      "example": "2",
-      "description": "Business account flag."
+      "name": "avatar_url",
+      "example": "https://pps.whatsapp.net/v/example.jpg",
+      "description": "Public avatar URL when available; an empty value does not reveal a private image."
     }
   ],
   "statuses": [
@@ -93,5 +68,5 @@
   "pricing_url": "https://walookup.com/pricing",
   "maintainer": "WA Lookup",
   "license": "MIT",
-  "last_reviewed": "2026-09-22"
+  "last_reviewed": "2026-10-30"
 }

@@ -2,35 +2,33 @@ import { readFile } from "node:fs/promises";
 
 const apiKey = process.env.WALOOKUP_API_KEY;
 if (!apiKey) throw new Error("Set WALOOKUP_API_KEY");
-
-const baseUrl = process.env.API_BASE_URL || "https://walookup.com";
-const product = process.env.PRODUCT || "ws_profile_batch";
-const country = process.env.COUNTRY || "US";
-const path = process.env.FILE || "numbers.txt";
-
+const baseUrl = (process.env.API_BASE_URL || "https://walookup.com").replace(/\/$/, "");
+const path = process.env.FILE || "examples/numbers.txt";
 const form = new FormData();
-form.set("product", product);
-form.set("country", country);
+form.set("service_type", "ws_avatar_batch");
+form.set("country", process.env.COUNTRY || "US");
 form.set("file", new Blob([await readFile(path)]), "numbers.txt");
+const headers = { "X-API-Key": apiKey };
+if (process.env.IDEMPOTENCY_KEY) headers["Idempotency-Key"] = process.env.IDEMPOTENCY_KEY;
 
-const created = await fetch(`${baseUrl}/api/v1/bulk-tasks`, {
-  method: "POST",
-  headers: { "X-API-Key": apiKey },
-  body: form,
-});
-if (!created.ok) throw new Error(await created.text());
-const taskId = (await created.json()).data.id;
+async function readApi(response) {
+  if (!response.ok) throw new Error(await response.text());
+  const envelope = await response.json();
+  if (envelope.code !== 0) throw new Error(JSON.stringify(envelope));
+  return envelope.data;
+}
+
+const created = await readApi(await fetch(`${baseUrl}/api/v1/bulk-tasks`, {
+  method: "POST", headers, body: form, signal: AbortSignal.timeout(180_000),
+}));
+const taskId = created.id;
 console.log("submitted", taskId);
-
-// 轮询间隔不得短于 30 秒，这是服务端的契约而不是建议。
 for (;;) {
-  await new Promise((r) => setTimeout(r, 30_000));
-  const status = await fetch(`${baseUrl}/api/v1/bulk-tasks/${taskId}`, { headers: { "X-API-Key": apiKey } });
-  if (!status.ok) throw new Error(await status.text());
-  const data = (await status.json()).data;
-  console.log(data.status);
-  if (data.status !== "processing") {
-    console.log(data);
-    break;
-  }
+  await new Promise((resolve) => setTimeout(resolve, 30_000));
+  const data = await readApi(await fetch(`${baseUrl}/api/v1/bulk-tasks/${encodeURIComponent(taskId)}`, {
+    headers: { "X-API-Key": apiKey }, signal: AbortSignal.timeout(60_000),
+  }));
+  console.log(data);
+  if (data.status === "failed") throw new Error(`Task failed: ${data.reason || ""} ${data.reason_detail || ""}`);
+  if (data.status === "success" && data.result_url) break;
 }
