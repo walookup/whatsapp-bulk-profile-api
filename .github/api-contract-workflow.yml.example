@@ -1,0 +1,24 @@
+name: API contract
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      live:
+        description: Compare anonymous legacy product catalog (no paid requests)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install -r scripts/requirements-contract.txt
+      - run: python3 scripts/check_contract.py
+      - if: github.event_name == 'workflow_dispatch' && inputs.live
+        run: python3 scripts/check_contract.py --live
