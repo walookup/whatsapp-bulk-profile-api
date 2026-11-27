@@ -1,11 +1,10 @@
-"""Offline consistency checks; optional anonymous legacy-catalog comparison."""
+"""Offline consistency checks for this repository's contract files."""
 from pathlib import Path
-import argparse,json,subprocess,sys,urllib.request
+import json,subprocess,sys
 import yaml
 from openapi_spec_validator import validate_spec
 ROOT=Path(__file__).resolve().parents[1]
 def check():
- parser=argparse.ArgumentParser();parser.add_argument('--live',action='store_true');args=parser.parse_args()
  m=json.loads((ROOT/'product.json').read_text());spec=yaml.safe_load((ROOT/'openapi.yaml').read_text());validate_spec(spec)
  assert m.get('status')!='retired','Retired products must not advertise active operations'
  assert m['base_url'].rstrip('/') in [x['url'].rstrip('/') for x in spec['servers']], 'API base URL differs'
@@ -32,16 +31,6 @@ def check():
    for filename in ['README.md','llms.txt']:
     text=(ROOT/filename).read_text()
     if 'x-product-limits' in spec:assert expected in text,f'{filename} limits differ: {code}'
-  if args.live:
-   host='platform.numberchecker.ai' if m['brand']=='NumberChecker' else 'platform.checknumber.ai'
-   with urllib.request.urlopen('https://'+host+'/api/products/configs',timeout=30) as r:catalog={x['id']:x for x in json.load(r)['products']}
-   for p in products:
-    c=catalog.get(p['product_id']);assert c is not None,f'Product removed: {p["product_id"]}'
-    assert c['available'],f'Product unavailable: {p["product_id"]}'
-    expected=(p.get('min_numbers',p.get('min')),p.get('max_numbers',p.get('max')),p['min_billable_numbers'])
-    assert expected==(c['min_numbers'],c['max_numbers'],c['min_billable_numbers']),f'Live limits changed: {p["product_id"]}'
-   print('Live legacy catalog matches; no task submitted.')
- elif args.live:print('Live catalog comparison unavailable for this API family; offline validation only.')
  test=ROOT/'tests/test_contract.py'
  if test.exists():subprocess.run([sys.executable,str(test)],cwd=ROOT,check=True)
  print('Contract checks passed.')
